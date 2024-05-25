@@ -82,7 +82,7 @@ pub fn build(b: *std.Build) void {
         .source_dir = .{ .dependency = .{ .dependency = upstream, .sub_path = "include" } },
         .install_dir = .header,
         .install_subdir = "",
-        .include_extensions = &.{"yaml.h"},
+        .include_extensions = &.{".h"},
     });
     b.installArtifact(lib);
 }

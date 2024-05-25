@@ -1,0 +1,14 @@
+.{
+    .name = "rcutils",
+    .version = "6.2.3",
+    .dependencies = .{
+        .rcutils = .{
+            .url = "https://github.com/ros2/rcutils/archive/refs/heads/iron.tar.gz",
+            .hash = "122069682f42f5d977cbc8b8cad5fd639d5a27722c30c4dbfc00b364232cae672e99",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+    },
+}

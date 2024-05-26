@@ -5,17 +5,17 @@ pub fn build(b: *std.Build) void {
 
     const optimize = b.standardOptimizeOption(.{});
 
-    const linkage = b.option(std.build.Step.Compile.Linkage, "linkage", "Specify static or dynamic linkage") orelse .dynamic;
+    const linkage = b.option(std.builtin.LinkMode, "linkage", "Specify static or dynamic linkage") orelse .dynamic;
     const upstream = b.dependency("rcutils", .{});
-    var lib = std.build.Step.Compile.create(b, .{
+    var lib = std.Build.Step.Compile.create(b, .{
+        .root_module = .{
+            .target = target,
+            .optimize = optimize,
+        },
         .name = "rcutils",
-        .target = target,
-        .optimize = optimize,
         .kind = .lib,
         .linkage = linkage,
     });
-    // TODO need to add the python command import em em.invoke(['-o', 'include/rcutils/logging_macros.h', '-D', 'rcutils_module_path="./"', 'resource/logging_macros.h.em'])
-    // b.addRunArtifact();
 
     const python_command =
         \\import em
@@ -28,14 +28,14 @@ pub fn build(b: *std.Build) void {
     lib.step.dependOn(&python_step.step);
 
     lib.linkLibC();
-    lib.addIncludePath(.{ .dependency = .{ .dependency = upstream, .sub_path = "include" } });
+    lib.addIncludePath(upstream.path("include"));
 
-    const time = switch (target.getOs().tag) {
+    const time = switch (target.result.os.tag) {
         .windows => "src/time_win32.c",
         else => "src/time_unix.c",
     };
     lib.addCSourceFiles(.{
-        .dependency = upstream,
+        .root = upstream.path(""),
         .files = &.{
             "src/allocator.c",
             "src/array_list.c",
@@ -71,18 +71,17 @@ pub fn build(b: *std.Build) void {
     // rcutils strerror.c tries to use the gnu version of strerror_r which musl doesn't seem to support.
     // To get around this, we define _GNU_SOURCE only for process.c
     lib.addCSourceFiles(.{
-        .dependency = upstream,
+        .root = upstream.path(""),
         .files = &.{
             "src/process.c",
         },
         .flags = &[_][]const u8{"-D_GNU_SOURCE"},
     });
 
-    lib.installHeadersDirectoryOptions(.{
-        .source_dir = .{ .dependency = .{ .dependency = upstream, .sub_path = "include" } },
-        .install_dir = .header,
-        .install_subdir = "",
-        .include_extensions = &.{".h"},
-    });
+    lib.installHeadersDirectory(
+        upstream.path("include"),
+        "",
+        .{},
+    );
     b.installArtifact(lib);
 }

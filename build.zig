@@ -84,4 +84,17 @@ pub fn build(b: *std.Build) void {
         .{},
     );
     b.installArtifact(lib);
+
+    // Export python logging.py
+    var python = b.addNamedWriteFiles("rcutils");
+    _ = python.addCopyDirectory(
+        upstream.path("rcutils"),
+        "rcutils",
+        .{ .exclude_extensions = &.{ "__pycache__", ".pyc" } },
+    );
+    b.installDirectory(.{
+        .source_dir = python.getDirectory(),
+        .install_dir = .{ .custom = "" },
+        .install_subdir = "",
+    });
 }

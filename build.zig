@@ -11,6 +11,7 @@ pub fn build(b: *std.Build) void {
         .root_module = .{
             .target = target,
             .optimize = optimize,
+            .pic = if (linkage == .dynamic) true else null,
         },
         .name = "rcutils",
         .kind = .lib,
@@ -19,11 +20,15 @@ pub fn build(b: *std.Build) void {
 
     const python_command =
         \\import em
-        \\em.invoke(['-o', 'include/rcutils/logging_macros.h', '-D', 'rcutils_module_path="./"', 'resource/logging_macros.h.em'])
+        \\import sys
+        \\output = sys.argv[1]
+        \\em.invoke(['-o', output, '-D', 'rcutils_module_path="./"', 'resource/logging_macros.h.em'])
     ;
 
     var python_step = b.addSystemCommand(&.{ "python3", "-c", python_command });
     python_step.setCwd(upstream.path(""));
+
+    const logging_output = python_step.addOutputFileArg("include/rcutils/logging_macros.h");
 
     lib.step.dependOn(&python_step.step);
 
@@ -63,6 +68,7 @@ pub fn build(b: *std.Build) void {
             time,
             "src/uint8_array.c",
         },
+        .flags = &.{"-fvisibility=hidden"},
     });
 
     // process.c assumes that program_invocation_name exists which is a gnu specific thing.
@@ -75,8 +81,14 @@ pub fn build(b: *std.Build) void {
         .files = &.{
             "src/process.c",
         },
-        .flags = &[_][]const u8{"-D_GNU_SOURCE"},
+        .flags = &.{ "-D_GNU_SOURCE", "-fvisibility=hidden" },
     });
+
+    // Add the parent directory to be sure that the file structuree is captured
+    // This forces it to show up as "rcutils/logging_macro.h" instead of just "logging_macro.h"
+    // Seems to work more consistently
+    lib.addIncludePath(logging_output.dirname().dirname());
+    lib.installHeader(logging_output, "rcutils/logging_macros.h");
 
     lib.installHeadersDirectory(
         upstream.path("include"),
